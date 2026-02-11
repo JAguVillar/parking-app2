@@ -1,98 +1,194 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
-
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
+import React, { useState } from 'react';
+import { StyleSheet, View, ScrollView, Pressable, Platform } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { ParkingMap } from '@/components/parking-map';
+import { MOCK_ROUTES, Route, ParkingSpot } from '@/constants/mockRoutes';
+import { useThemeColor } from '@/hooks/use-theme-color';
 
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+  const [selectedRoute, setSelectedRoute] = useState<Route | null>(null);
+  const [selectedParkingSpot, setSelectedParkingSpot] = useState<ParkingSpot | null>(null);
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+  const cardBackgroundColor = useThemeColor({}, 'background');
+  const borderColor = useThemeColor({ light: '#E5E5EA', dark: '#38383A' }, 'text');
+  const accentColor = useThemeColor({ light: '#007AFF', dark: '#0A84FF' }, 'tint');
+
+  const handleRoutePress = (route: Route) => {
+    setSelectedRoute(route.id === selectedRoute?.id ? null : route);
+    setSelectedParkingSpot(null);
+  };
+
+  const handleParkingSpotPress = (spot: ParkingSpot) => {
+    setSelectedParkingSpot(spot);
+  };
+
+  return (
+    <View style={styles.container}>
+      {/* Mapa */}
+      <View style={styles.mapContainer}>
+        <ParkingMap
+          routes={MOCK_ROUTES}
+          selectedRoute={selectedRoute}
+          onParkingSpotPress={handleParkingSpotPress}
+        />
+      </View>
+
+      {/* Panel de información */}
+      <View style={styles.infoPanel}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.routesContainer}
+        >
+          {MOCK_ROUTES.map((route) => {
+            const isSelected = selectedRoute?.id === route.id;
+            return (
+              <Pressable
+                key={route.id}
+                style={[
+                  styles.routeCard,
+                  {
+                    backgroundColor: cardBackgroundColor,
+                    borderColor: isSelected ? accentColor : borderColor,
+                    borderWidth: isSelected ? 2 : 1,
+                  },
+                ]}
+                onPress={() => handleRoutePress(route)}
+              >
+                <ThemedText type="defaultSemiBold" style={styles.routeName}>
+                  {route.name}
+                </ThemedText>
+                <ThemedText style={styles.routeDetails}>
+                  📍 {route.distance} km · ⏱️ {route.estimatedTime} min
+                </ThemedText>
+                <ThemedText style={styles.routeDetails}>
+                  🅿️ {route.parkingSpots.length} estacionamientos
+                </ThemedText>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+
+        {/* Información del estacionamiento seleccionado */}
+        {selectedParkingSpot && (
+          <ThemedView style={[styles.spotInfo, { borderColor }]}>
+            <ThemedText type="subtitle">{selectedParkingSpot.name}</ThemedText>
+            <View style={styles.spotDetailsRow}>
+              <ThemedText style={styles.spotDetail}>
+                Disponibles: {selectedParkingSpot.availableSpots}/{selectedParkingSpot.totalSpots}
+              </ThemedText>
+              <ThemedText style={styles.spotDetail}>
+                ${selectedParkingSpot.pricePerHour}/hr
+              </ThemedText>
+            </View>
+            <ThemedText style={styles.spotDetail}>
+              ⭐ {selectedParkingSpot.rating}/5.0
+            </ThemedText>
+          </ThemedView>
+        )}
+
+        {/* Instrucciones */}
+        {!selectedRoute && !selectedParkingSpot && (
+          <ThemedView style={styles.instructions}>
+            <ThemedText type="defaultSemiBold" style={styles.instructionsTitle}>
+              Encuentra tu estacionamiento
+            </ThemedText>
+            <ThemedText style={styles.instructionsText}>
+              • Selecciona una ruta para ver su trayecto
+            </ThemedText>
+            <ThemedText style={styles.instructionsText}>
+              • Toca los marcadores para ver detalles
+            </ThemedText>
+            <ThemedText style={styles.instructionsText}>
+              • Verde: alta disponibilidad
+            </ThemedText>
+            <ThemedText style={styles.instructionsText}>
+              • Naranja: disponibilidad media
+            </ThemedText>
+            <ThemedText style={styles.instructionsText}>
+              • Rojo: baja disponibilidad
+            </ThemedText>
+          </ThemedView>
+        )}
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: {
+    flex: 1,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  mapContainer: {
+    flex: 1,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
+  infoPanel: {
+    position: 'absolute',
     bottom: 0,
     left: 0,
-    position: 'absolute',
+    right: 0,
+    paddingTop: 12,
+    paddingBottom: Platform.OS === 'ios' ? 20 : 12,
+  },
+  routesContainer: {
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  routeCard: {
+    padding: 16,
+    borderRadius: 12,
+    minWidth: 200,
+    gap: 4,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
+  },
+  routeName: {
+    fontSize: 16,
+    marginBottom: 4,
+  },
+  routeDetails: {
+    fontSize: 13,
+    opacity: 0.8,
+  },
+  spotInfo: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 8,
+  },
+  spotDetailsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  spotDetail: {
+    fontSize: 14,
+    opacity: 0.9,
+  },
+  instructions: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    padding: 16,
+    borderRadius: 12,
+    gap: 6,
+  },
+  instructionsTitle: {
+    fontSize: 16,
+    marginBottom: 8,
+  },
+  instructionsText: {
+    fontSize: 13,
+    opacity: 0.8,
   },
 });
